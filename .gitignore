@@ -1,0 +1,45 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Entornos virtuales
+.venv/
+venv/
+
+# Variables de entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+
+# Datos y modelos generados
+data/processed/
+data/predictions/
+models/
+
+# Resultados locales
+reports/figures/
+reports/metrics/
+
+# MLflow (almacenamiento local)
+mlruns/
+mlartifacts/
+
+# Airflow (archivos temporales)
+airflow/logs/
+airflow/airflow.db
+
+# DVC (caché local)
+.dvc/cache/
