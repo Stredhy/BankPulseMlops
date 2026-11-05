@@ -73,7 +73,7 @@ La estructura se ampliará conforme se implementen nuevos módulos y herramienta
 
 ## Etapas de desarrollo
 
-- [ ] Configuración inicial del repositorio.
+- [✅] Configuración inicial del repositorio.
 - [ ] Exploración y preprocesamiento del dataset.
 - [ ] Entrenamiento y evaluación de modelos.
 - [ ] Versionado de datos mediante DVC.
