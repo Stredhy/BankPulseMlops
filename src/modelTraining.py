@@ -1,4 +1,4 @@
-
+from src.modelPersistence import saveModel
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, average_precision_score
 from sklearn.metrics import (
@@ -77,5 +77,6 @@ if __name__ == "__main__":
     )
 
     model = trainModel(xTrainTransformed, yTrain)
-
     evaluateModel(model, xTestTransformed, yTest)
+
+    saveModel(model, preprocessor)
