@@ -73,9 +73,9 @@ La estructura se ampliará conforme se implementen nuevos módulos y herramienta
 
 ## Etapas de desarrollo
 
-- [✅] Configuración inicial del repositorio.
-- [ ] Exploración y preprocesamiento del dataset.
-- [ ] Entrenamiento y evaluación de modelos.
+- [x] Configuración inicial del repositorio.
+- [x] Exploración y preprocesamiento del dataset.
+- [x] Entrenamiento y evaluación de modelos.
 - [ ] Versionado de datos mediante DVC.
 - [ ] Seguimiento de experimentos con MLflow.
 - [ ] Automatización de pipelines con Apache Airflow.
