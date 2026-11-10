@@ -50,3 +50,8 @@ mlflow.db
 
 # Respaldos locales de modelos
 modelsBackup/
+
+# Airflow automation logs
+scripts/*.log
+
+scripts/*.backup.ps1
