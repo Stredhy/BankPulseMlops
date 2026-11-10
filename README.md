@@ -11,7 +11,7 @@ El proyecto utiliza el conjunto de datos **Bank Marketing**, disponible en el UC
 
 Su desarrollo se realizará de manera progresiva, comenzando con la organización de datos y el control de versiones, para posteriormente incorporar entrenamiento de modelos, seguimiento de experimentos, automatización, despliegue y monitoreo.
 
-> **Estado actual:** El proyecto cuenta con preprocesamiento de datos, entrenamiento y evaluación de modelos, persistencia y seguimiento de experimentos mediante MLflow. Las demás herramientas se incorporarán progresivamente.
+> **Estado actual:** El proyecto cuenta con preprocesamiento de datos, entrenamiento y evaluación de modelos, persistencia, versionado de datos mediante DVC y seguimiento de experimentos mediante MLflow. Las demás herramientas se incorporarán progresivamente.
 
 ## Objetivo general
 
@@ -76,7 +76,7 @@ La estructura se ampliará conforme se implementen nuevos módulos y herramienta
 - [x] Configuración inicial del repositorio.
 - [x] Exploración y preprocesamiento del dataset.
 - [x] Entrenamiento y evaluación de modelos.
-- [ ] Versionado de datos mediante DVC.
+- [x] Versionado de datos mediante DVC.
 - [x] Seguimiento de experimentos con MLflow.
 - [ ] Automatización de pipelines con Apache Airflow.
 - [ ] Desarrollo de una API REST con FastAPI.
@@ -94,7 +94,7 @@ También se busca comprender la integración de las herramientas de MLOps y su i
 
 **Fase actual: Integración de herramientas MLOps.**
 
-El repositorio incluye módulos de procesamiento de datos, entrenamiento, evaluación, persistencia y seguimiento de experimentos. El siguiente componente por implementar es el versionado de datos mediante DVC.
+El repositorio incluye módulos de procesamiento de datos, entrenamiento, evaluación, persistencia y seguimiento de experimentos. El versionado de datos mediante DVC ya se encuentra implementado. El siguiente componente por implementar es la automatización de pipelines con Apache Airflow.
 
 ## Referencia del dataset
 
@@ -151,3 +151,32 @@ En MLflow 3.18.0, seleccionar **Model training** y acceder al experimento `BankP
 Las dos ejecuciones utilizaron la misma configuracion y produjeron las mismas metricas. Esto confirma la reproducibilidad observada del entrenamiento.
 
 La base de datos local de MLflow no se incorpora al repositorio Git.
+
+## Versionado de datos con DVC
+
+BankPulse MLOps utiliza DVC para versionar el dataset sin almacenar su contenido directamente en Git.
+
+### Dataset versionado
+
+El archivo `data/raw/data.csv` contiene 41,188 registros y se rastrea mediante `data/raw/data.csv.dvc`.
+
+### Almacenamiento local
+
+El almacenamiento predeterminado es `localstorage`, ubicado en la carpeta hermana `BankPulseDvcStorage`. Su configuración se encuentra en `.dvc/config`.
+
+Este almacenamiento requiere acceso a la carpeta local. Para utilizarlo desde otra computadora, es necesario disponer de una copia del almacenamiento en la ruta correspondiente.
+
+### Comandos principales
+
+- `dvc add data/raw/data.csv`: registra una versión del dataset.
+- `dvc push`: envía los datos al almacenamiento configurado.
+- `dvc pull`: recupera los datos versionados.
+- `dvc status`: comprueba si existen cambios pendientes.
+
+### Resultados verificados
+
+- DVC 3.67.1 instalado correctamente.
+- Dataset registrado mediante DVC.
+- Almacenamiento local configurado.
+- Envío y recuperación de datos verificados.
+- Dataset excluido del seguimiento directo de Git.
