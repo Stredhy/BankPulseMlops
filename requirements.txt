@@ -1,7 +1,9 @@
-
 pandas
 numpy
 scikit-learn
 matplotlib
 pytest
 joblib
+mlflow==3.18.0
+pydantic==2.14.2
+pydantic-core==2.50.2
