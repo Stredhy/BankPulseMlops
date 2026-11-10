@@ -76,9 +76,9 @@ La estructura se ampliará conforme se implementen nuevos módulos y herramienta
 - [x] Configuración inicial del repositorio.
 - [x] Exploración y preprocesamiento del dataset.
 - [x] Entrenamiento y evaluación de modelos.
-- [x] Versionado de datos mediante DVC.
+- [x] Versionado de datos con DVC.
 - [x] Seguimiento de experimentos con MLflow.
-- [ ] Automatización de pipelines con Apache Airflow.
+- [x] Automatización de pipelines con Apache Airflow.
 - [ ] Desarrollo de una API REST con FastAPI.
 - [ ] Contenerización mediante Docker.
 - [ ] Configuración de CI/CD con GitHub Actions.
