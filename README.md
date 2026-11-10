@@ -11,7 +11,7 @@ El proyecto utiliza el conjunto de datos **Bank Marketing**, disponible en el UC
 
 Su desarrollo se realizará de manera progresiva, comenzando con la organización de datos y el control de versiones, para posteriormente incorporar entrenamiento de modelos, seguimiento de experimentos, automatización, despliegue y monitoreo.
 
-> **Estado actual:** El proyecto se encuentra en su fase inicial de desarrollo. La arquitectura y las herramientas descritas representan los componentes previstos y no necesariamente funcionalidades implementadas.
+> **Estado actual:** El proyecto cuenta con preprocesamiento de datos, entrenamiento y evaluación de modelos, persistencia y seguimiento de experimentos mediante MLflow. Las demás herramientas se incorporarán progresivamente.
 
 ## Objetivo general
 
@@ -76,8 +76,8 @@ La estructura se ampliará conforme se implementen nuevos módulos y herramienta
 - [x] Configuración inicial del repositorio.
 - [x] Exploración y preprocesamiento del dataset.
 - [x] Entrenamiento y evaluación de modelos.
-- [x] Versionado de datos mediante DVC.
-- [ ] Seguimiento de experimentos con MLflow.
+- [ ] Versionado de datos mediante DVC.
+- [x] Seguimiento de experimentos con MLflow.
 - [ ] Automatización de pipelines con Apache Airflow.
 - [ ] Desarrollo de una API REST con FastAPI.
 - [ ] Contenerización mediante Docker.
@@ -92,9 +92,9 @@ También se busca comprender la integración de las herramientas de MLOps y su i
 
 ## Estado del proyecto
 
-**Fase actual: Inicialización y organización.**
+**Fase actual: Integración de herramientas MLOps.**
 
-El repositorio se encuentra en preparación. Las instrucciones de instalación, ejecución, entrenamiento y consumo de la API se incorporarán cuando sus respectivos componentes estén implementados.
+El repositorio incluye módulos de procesamiento de datos, entrenamiento, evaluación, persistencia y seguimiento de experimentos. El siguiente componente por implementar es el versionado de datos mediante DVC.
 
 ## Referencia del dataset
 
@@ -105,3 +105,49 @@ Moro, S., Cortez, P., & Rita, P. (2014). *A data-driven approach to predict the 
 ---
 
 **BankPulse MLOps** — Proyecto académico en desarrollo.
+
+## Seguimiento de experimentos con MLflow
+
+BankPulse MLOps utiliza MLflow para registrar los hiperparametros y las metricas del modelo, asi como comparar diferentes ejecuciones de entrenamiento.
+
+### Entrenamiento y registro de experimentos
+
+Desde la raiz del proyecto, ejecutar:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.modelTraining
+```
+
+El entrenamiento registra automaticamente los resultados en el experimento `BankPulseModelTraining`, utilizando la base de datos local `mlflow.db`.
+
+Se registran los parametros del modelo `LogisticRegression` y las metricas `accuracy`, `rocAuc` y `averagePrecision`.
+
+### Iniciar la interfaz de MLflow
+
+```powershell
+.\.venv\Scripts\mlflow.exe ui --backend-store-uri sqlite:///mlflow.db
+```
+
+Abrir `http://127.0.0.1:5000` en el navegador.
+
+En MLflow 3.18.0, seleccionar **Model training** y acceder al experimento `BankPulseModelTraining`.
+
+### Comparación de ejecuciones
+
+1. Abrir la seccion **Runs**.
+2. Seleccionar dos o mas ejecuciones.
+3. Hacer clic en **Compare**.
+4. Seleccionar los parametros y las metricas que se desean visualizar.
+5. Revisar los resultados y la seccion **Run details**.
+
+### Resultados verificados
+
+| Metrica | Ejecucion 1 | Ejecucion 2 |
+| --- | ---: | ---: |
+| Accuracy | 0.834669 | 0.834669 |
+| ROC-AUC | 0.801041 | 0.801041 |
+| Average Precision | 0.459830 | 0.459830 |
+
+Las dos ejecuciones utilizaron la misma configuracion y produjeron las mismas metricas. Esto confirma la reproducibilidad observada del entrenamiento.
+
+La base de datos local de MLflow no se incorpora al repositorio Git.
