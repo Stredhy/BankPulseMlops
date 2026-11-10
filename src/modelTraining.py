@@ -1,3 +1,4 @@
+from src.experimentTracking import trackExperiment
 from src.modelPersistence import saveModel
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, average_precision_score
@@ -78,5 +79,7 @@ if __name__ == "__main__":
 
     model = trainModel(xTrainTransformed, yTrain)
     evaluateModel(model, xTestTransformed, yTest)
+
+    trackExperiment(model, xTestTransformed, yTest)
 
     saveModel(model, preprocessor)

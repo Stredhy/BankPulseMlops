@@ -43,3 +43,7 @@ airflow/airflow.db
 
 # DVC (caché local)
 .dvc/cache/
+
+# MLflow experiment tracking
+mlruns/
+mlflow.db
