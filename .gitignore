@@ -47,3 +47,6 @@ airflow/airflow.db
 # MLflow experiment tracking
 mlruns/
 mlflow.db
+
+# Respaldos locales de modelos
+modelsBackup/
