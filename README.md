@@ -180,3 +180,55 @@ Este almacenamiento requiere acceso a la carpeta local. Para utilizarlo desde ot
 - Almacenamiento local configurado.
 - Envío y recuperación de datos verificados.
 - Dataset excluido del seguimiento directo de Git.
+
+## Monitoreo del modelo
+
+BankPulse MLOps incorpora monitoreo de solicitudes HTTP, predicciones y cambios en la distribucion de los datos.
+
+### Metricas con Prometheus
+
+La API FastAPI expone el endpoint `/metrics`, compatible con Prometheus.
+
+Metricas implementadas:
+
+- `bankpulse_http_requests_total`: solicitudes por metodo, endpoint y codigo HTTP.
+- `bankpulse_http_request_duration_seconds`: duracion de las solicitudes.
+- `bankpulse_model_predictions_total`: predicciones por resultado.
+
+Para consultar las metricas, iniciar la API y abrir:
+
+http://127.0.0.1:8000/metrics
+
+Este endpoint no instala ni configura un servidor Prometheus.
+
+### Deteccion de data drift
+
+El modulo `src/dataDrift.py` utiliza la prueba Kolmogorov-Smirnov para comparar las distribuciones de caracteristicas numericas.
+
+La funcion `compareDataDrift()` devuelve el total de caracteristicas analizadas, el numero de caracteristicas con drift, un indicador general y los resultados individuales.
+
+El nivel de significancia predeterminado es 0.05. Detectar drift no implica necesariamente una reduccion del rendimiento predictivo.
+
+### Referencia de entrenamiento con DVC
+
+La referencia `data/reference/trainingReference.csv` contiene 32,950 registros y 20 caracteristicas de entrada.
+
+El archivo `data/reference/trainingReference.csv.dvc` permite versionarla sin incluir los datos originales en Git.
+
+Para recuperar la referencia:
+
+    .\.venv\Scripts\dvc.exe pull data/reference/trainingReference.csv.dvc
+
+### Ejecutar una comparacion
+
+Desde la raiz del proyecto:
+
+    .\.venv\Scripts\python.exe -c "import pandas as pd; from src.dataDrift import compareDataDrift; currentData = pd.read_csv('data/reference/trainingReference.csv'); print(compareDataDrift(currentData))"
+
+Este ejemplo compara la referencia consigo misma. Para analizar datos nuevos, es necesario proporcionar un lote con las mismas caracteristicas.
+
+### Pruebas automatizadas
+
+Las pruebas del monitoreo se encuentran en `tests/testMonitoring.py` y `tests/testDataDrift.py`.
+
+La validacion local del proyecto finalizo con 31 pruebas aprobadas.

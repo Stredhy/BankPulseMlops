@@ -3,6 +3,7 @@ import pandas as pd
 from api.schemas import ClientData
 from src.dataProcessing import cleanData
 from src.modelPersistence import loadModel
+from api.monitoring import modelPredictionsTotal
 
 
 model, preprocessor = loadModel()
@@ -31,6 +32,10 @@ def predictClient(clientData: ClientData):
     probability = float(
         model.predict_proba(transformedFeatures)[0, 1]
     )
+
+    modelPredictionsTotal.labels(
+        prediction=str(prediction)
+    ).inc()
 
     return {
         "prediction": prediction,
