@@ -1,9 +1,10 @@
-
 import numpy as np
 import pytest
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.compose import ColumnTransformer
+
+import src.modelPersistence as modelPersistence
 
 from src.dataProcessing import (
     loadData,
@@ -12,9 +13,7 @@ from src.dataProcessing import (
     splitData,
     transformData,
 )
-
 from src.modelTraining import trainModel
-from src.modelPersistence import saveModel, loadModel
 
 
 @pytest.fixture(scope="module")
@@ -37,10 +36,29 @@ def persistenceData():
     return model, preprocessor, xTest
 
 
-def testSaveModel(persistenceData):
+@pytest.fixture
+def isolatedModels(tmp_path, monkeypatch):
+    originalPath = modelPersistence.Path
+
+    def temporaryPath(*args, **kwargs):
+        path = originalPath(*args, **kwargs)
+
+        if path.name == "models":
+            return tmp_path
+
+        return path
+
+    monkeypatch.setattr(
+        modelPersistence,
+        "Path",
+        temporaryPath
+    )
+
+
+def testSaveModel(persistenceData, isolatedModels):
     model, preprocessor, _ = persistenceData
 
-    modelPath, preprocessorPath = saveModel(
+    modelPath, preprocessorPath = modelPersistence.saveModel(
         model, preprocessor
     )
 
@@ -48,26 +66,26 @@ def testSaveModel(persistenceData):
     assert preprocessorPath.is_file()
 
 
-def testLoadModel(persistenceData):
+def testLoadModel(persistenceData, isolatedModels):
     model, preprocessor, _ = persistenceData
 
-    saveModel(model, preprocessor)
+    modelPersistence.saveModel(model, preprocessor)
 
-    loadedModel, loadedPreprocessor = loadModel()
+    loadedModel, loadedPreprocessor = modelPersistence.loadModel()
 
     assert isinstance(loadedModel, LogisticRegression)
     assert isinstance(loadedPreprocessor, ColumnTransformer)
 
 
-def testPersistedPredictions(persistenceData):
+def testPersistedPredictions(persistenceData, isolatedModels):
     model, preprocessor, xTest = persistenceData
 
     originalPredictions = model.predict(
         preprocessor.transform(xTest)
     )
 
-    saveModel(model, preprocessor)
-    loadedModel, loadedPreprocessor = loadModel()
+    modelPersistence.saveModel(model, preprocessor)
+    loadedModel, loadedPreprocessor = modelPersistence.loadModel()
 
     loadedPredictions = loadedModel.predict(
         loadedPreprocessor.transform(xTest)
@@ -79,15 +97,15 @@ def testPersistedPredictions(persistenceData):
     )
 
 
-def testPersistedProbabilities(persistenceData):
+def testPersistedProbabilities(persistenceData, isolatedModels):
     model, preprocessor, xTest = persistenceData
 
     originalProbabilities = model.predict_proba(
         preprocessor.transform(xTest)
     )
 
-    saveModel(model, preprocessor)
-    loadedModel, loadedPreprocessor = loadModel()
+    modelPersistence.saveModel(model, preprocessor)
+    loadedModel, loadedPreprocessor = modelPersistence.loadModel()
 
     loadedProbabilities = loadedModel.predict_proba(
         loadedPreprocessor.transform(xTest)
