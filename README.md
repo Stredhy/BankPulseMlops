@@ -79,8 +79,8 @@ La estructura se ampliará conforme se implementen nuevos módulos y herramienta
 - [x] Versionado de datos con DVC.
 - [x] Seguimiento de experimentos con MLflow.
 - [x] Automatización de pipelines con Apache Airflow.
-- [ ] Desarrollo de una API REST con FastAPI.
-- [ ] Contenerización mediante Docker.
+- [x] Desarrollo de una API REST con FastAPI.
+- [x] Contenerización mediante Docker.
 - [ ] Configuración de CI/CD con GitHub Actions.
 - [ ] Implementación de monitoreo del modelo.
 
