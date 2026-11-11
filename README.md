@@ -81,7 +81,7 @@ La estructura se ampliará conforme se implementen nuevos módulos y herramienta
 - [x] Automatización de pipelines con Apache Airflow.
 - [x] Desarrollo de una API REST con FastAPI.
 - [x] Contenerización mediante Docker.
-- [ ] Configuración de CI/CD con GitHub Actions.
+- [x] Configuración de CI/CD con GitHub Actions.
 - [ ] Implementación de monitoreo del modelo.
 
 ## Resultados esperados
