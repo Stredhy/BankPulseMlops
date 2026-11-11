@@ -55,3 +55,6 @@ modelsBackup/
 scripts/*.log
 
 scripts/*.backup.ps1
+
+# Datos de referencia para monitoreo
+data/reference/*.csv

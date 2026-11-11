@@ -1,0 +1,5 @@
+outs:
+- md5: f0c82b543af247b093b97e109f1e04bc
+  size: 3708885
+  hash: md5
+  path: trainingReference.csv
