@@ -32,7 +32,13 @@ if [ -z "$(docker images -q "$IMAGE_NAME")" ]; then
   docker build -t "$IMAGE_NAME" "$PROJECT_ROOT"
 fi
 
-if docker ps -a --format "{{.Names}}" | grep -qx "$CONTAINER_NAME"; then
+EXISTING_IMAGE=$(docker ps -a --filter "name=^/${CONTAINER_NAME}$" --format "{{.Image}}")
+if [ -n "$EXISTING_IMAGE" ] && [ "$EXISTING_IMAGE" != "$IMAGE_NAME" ]; then
+  docker rm -f "$CONTAINER_NAME" >/dev/null
+  EXISTING_IMAGE=""
+fi
+
+if [ "$EXISTING_IMAGE" = "$IMAGE_NAME" ]; then
   docker start "$CONTAINER_NAME" >/dev/null
 else
   docker run -d --name "$CONTAINER_NAME" -p 8000:8000 -v "$PROJECT_ROOT/mlflow.db:/app/mlflow.db" -v "$PROJECT_ROOT/data:/app/data:ro" -v "$PROJECT_ROOT/scripts:/app/scripts:ro" -v "$PROJECT_ROOT/.github:/app/.github:ro" "$IMAGE_NAME" >/dev/null
