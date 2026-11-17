@@ -52,12 +52,25 @@ function Start-DockerIfNeeded {
 function Start-BackendContainer {
     $imageExists = docker images -q $imageName
     if (-not $imageExists) {
-        Write-Host "[BankPulse] Construyendo imagen $imageName por primera vez..." -ForegroundColor Yellow
+        Write-Host "[BankPulse] Construyendo imagen $imageName..." -ForegroundColor Yellow
         docker build -t $imageName $projectRoot
     }
 
-    $existing = docker ps -a --filter "name=^/${containerName}$" --format "{{.Names}}"
-    if ($existing -eq $containerName) {
+    foreach ($legacy in @("bankpulseApiV11", "bankpulseApiV12")) {
+        $legacyExists = docker ps -a --filter "name=^/${legacy}$" --format "{{.Names}}"
+        if ($legacyExists -eq $legacy) {
+            docker rm -f $legacy *> $null
+        }
+    }
+
+    $existingImage = docker ps -a --filter "name=^/${containerName}$" --format "{{.Image}}"
+    if ($existingImage -and ($existingImage -ne $imageName)) {
+        Write-Host "[BankPulse] Actualizando contenedor $containerName de $existingImage a $imageName..." -ForegroundColor Yellow
+        docker rm -f $containerName *> $null
+        $existingImage = $null
+    }
+
+    if ($existingImage -eq $imageName) {
         Write-Host "[BankPulse] 2/4 Encendiendo API FastAPI ($containerName en :8000)..." -ForegroundColor Magenta
         docker start $containerName | Out-Null
     }
@@ -78,6 +91,22 @@ function Start-BackendContainer {
         $runArgs += $imageName
         & docker @runArgs | Out-Null
     }
+
+    Write-Host "[BankPulse] Esperando a que /dashboard/summary responda..." -ForegroundColor DarkGray
+    $apiDeadline = (Get-Date).AddSeconds(30)
+    while ((Get-Date) -lt $apiDeadline) {
+        try {
+            $resp = Invoke-WebRequest -Uri "http://localhost:8000/dashboard/summary" -UseBasicParsing -TimeoutSec 2
+            if ($resp.StatusCode -eq 200) {
+                Write-Host "[BankPulse] 2/4 API FastAPI lista con telemetria en vivo." -ForegroundColor Green
+                return
+            }
+        }
+        catch {
+            Start-Sleep -Milliseconds 700
+        }
+    }
+    Write-Host "[BankPulse] Aviso: La API tardo mas de lo esperado en responder en :8000." -ForegroundColor Yellow
 }
 
 function Start-AirflowIfAvailable {
