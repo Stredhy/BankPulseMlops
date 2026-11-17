@@ -11,7 +11,7 @@ El proyecto utiliza el conjunto de datos **Bank Marketing**, disponible en el UC
 
 Su desarrollo se realizará de manera progresiva, comenzando con la organización de datos y el control de versiones, para posteriormente incorporar entrenamiento de modelos, seguimiento de experimentos, automatización, despliegue y monitoreo.
 
-> **Estado actual:** El proyecto cuenta con preprocesamiento de datos, entrenamiento y evaluación de modelos, persistencia, versionado de datos mediante DVC y seguimiento de experimentos mediante MLflow. Las demás herramientas se incorporarán progresivamente.
+> **Estado actual:** El proyecto cuenta con preprocesamiento de datos, entrenamiento y evaluación de modelos, persistencia, versionado con DVC, seguimiento de experimentos con MLflow, orquestación con Apache Airflow, API REST en FastAPI contenerizada con Docker, CI/CD en GitHub Actions, monitoreo con Prometheus/Data Drift y un dashboard web interactivo.
 
 ## Objetivo general
 
@@ -83,6 +83,7 @@ La estructura se ampliará conforme se implementen nuevos módulos y herramienta
 - [x] Contenerización mediante Docker.
 - [x] Configuración de CI/CD con GitHub Actions.
 - [x] Implementación de monitoreo del modelo.
+- [x] Desarrollo de dashboard web interactivo con React, TypeScript y FastAPI.
 
 ## Resultados esperados
 
@@ -92,9 +93,9 @@ También se busca comprender la integración de las herramientas de MLOps y su i
 
 ## Estado del proyecto
 
-**Fase actual: Integración de herramientas MLOps.**
+**Fase actual: Ecosistema MLOps completo y visualización operativa.**
 
-El repositorio incluye módulos de procesamiento de datos, entrenamiento, evaluación, persistencia y seguimiento de experimentos. El versionado de datos mediante DVC ya se encuentra implementado. El siguiente componente por implementar es la automatización de pipelines con Apache Airflow.
+El repositorio integra el flujo completo de datos, entrenamiento, tracking en MLflow, orquestación en Airflow, despliegue en FastAPI/Docker, pruebas automatizadas con GitHub Actions, detección de data drift y un dashboard web conectado en tiempo real a las métricas del sistema.
 
 ## Referencia del dataset
 
@@ -232,3 +233,31 @@ Este ejemplo compara la referencia consigo misma. Para analizar datos nuevos, es
 Las pruebas del monitoreo se encuentran en `tests/testMonitoring.py` y `tests/testDataDrift.py`.
 
 La validacion local del proyecto finalizo con 31 pruebas aprobadas.
+
+## Dashboard web MLOps
+
+BankPulse MLOps incorpora una interfaz web en modo oscuro (`frontend/`) construida con React, TypeScript, Tailwind CSS, Lucide React y Recharts para supervisar el estado real del sistema sin métricas simuladas.
+
+### Vistas y telemetría conectada
+
+- **Resumen MLOps:** métricas principales de MLflow, tráfico HTTP y latencia promedio desde `/metrics` (Prometheus).
+- **MLflow & Modelo:** historial de ejecuciones reales de `BankPulseModelTraining` leídas desde `mlflow.db`.
+- **Datos & Drift:** resultados de la prueba Kolmogorov-Smirnov (`src/dataDrift.py`) comparando `trainingReference.csv` contra `data.csv`.
+- **Inferencia en Vivo:** evaluación directa sobre `POST /predict`.
+- **Airflow & CI/CD:** estado del servicio en WSL (`bankPulsePipeline`), registros recientes y artefactos serializados.
+
+### Inicio y cierre coordinado
+
+Desde la raíz del proyecto en PowerShell:
+
+```powershell
+.\scripts\startDashboardSession.ps1
+```
+
+Para incluir también el encendido temporal de Apache Airflow en WSL durante la sesión:
+
+```powershell
+.\scripts\startDashboardSession.ps1 -IncludeAirflow
+```
+
+Al cerrar con `Ctrl + C`, el script detiene automáticamente el contenedor de FastAPI (y Airflow si fue iniciado en esa sesión).

@@ -1,11 +1,13 @@
 from time import perf_counter
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from api.schemas import ClientData
 from api.modelService import predictClient
+from api.dashboardService import getDashboardSummary
 from api.monitoring import (
     httpRequestsTotal,
     httpRequestDurationSeconds,
@@ -15,7 +17,18 @@ from api.monitoring import (
 app = FastAPI(
     title="BankPulse API",
     description="API REST para predecir la contratación de depósitos bancarios.",
-    version="1.0.0"
+    version="1.1.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -55,7 +68,7 @@ def getStatus():
     return {
         "application": "BankPulse API",
         "status": "running",
-        "version": "1.0.0"
+        "version": "1.1.0"
     }
 
 
@@ -65,6 +78,11 @@ def getMetrics():
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST
     )
+
+
+@app.get("/dashboard/summary")
+def dashboardSummary():
+    return getDashboardSummary()
 
 
 @app.post("/predict")
