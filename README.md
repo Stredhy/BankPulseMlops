@@ -246,18 +246,26 @@ BankPulse MLOps incorpora una interfaz web en modo oscuro (`frontend/`) construi
 - **Inferencia en Vivo:** evaluación directa sobre `POST /predict`.
 - **Airflow & CI/CD:** estado del servicio en WSL (`bankPulsePipeline`), registros recientes y artefactos serializados.
 
-### Inicio y cierre coordinado
+### Ejecución rápida todo-en-uno
 
-Desde la raíz del proyecto en PowerShell:
+Cualquier usuario que clone el repositorio puede iniciar todo el stack (construcción automática de la imagen Docker si no existe, FastAPI en `:8000`, MLflow UI en `:5000`, Airflow en WSL si está disponible y Dashboard React en `:5173`) con un solo comando:
 
-```powershell
-.\scripts\startDashboardSession.ps1
-```
-
-Para incluir también el encendido temporal de Apache Airflow en WSL durante la sesión:
+**En Windows (PowerShell):**
 
 ```powershell
-.\scripts\startDashboardSession.ps1 -IncludeAirflow
+.\scripts\bankPulseRun.ps1
 ```
 
-Al cerrar con `Ctrl + C`, el script detiene automáticamente el contenedor de FastAPI (y Airflow si fue iniciado en esa sesión).
+**En Linux / macOS:**
+
+```bash
+bash ./scripts/bankPulseRun.sh
+```
+
+*(Opcional en Windows)* Puedes registrar el alias global `bankPulseRun` en tu perfil de PowerShell:
+
+```powershell
+Add-Content $PROFILE 'function bankPulseRun { & "C:\RUTA\A\BankPulseMlops\scripts\bankPulseRun.ps1" @args }'
+```
+
+Al presionar `Ctrl + C` en la terminal, el script detiene automáticamente todos los servicios activos y libera los recursos.
