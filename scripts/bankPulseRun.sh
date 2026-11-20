@@ -32,23 +32,14 @@ if [ -z "$(docker images -q "$IMAGE_NAME")" ]; then
   docker build -t "$IMAGE_NAME" "$PROJECT_ROOT"
 fi
 
-EXISTING_IMAGE=$(docker ps -a --filter "name=^/${CONTAINER_NAME}$" --format "{{.Image}}")
-if [ -n "$EXISTING_IMAGE" ] && [ "$EXISTING_IMAGE" != "$IMAGE_NAME" ]; then
-  docker rm -f "$CONTAINER_NAME" >/dev/null
-  EXISTING_IMAGE=""
-fi
+docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+docker run -d --rm --name "$CONTAINER_NAME" -p 8000:8000 -v "$PROJECT_ROOT/mlflow.db:/app/mlflow.db" -v "$PROJECT_ROOT/data:/app/data:ro" -v "$PROJECT_ROOT/scripts:/app/scripts:ro" -v "$PROJECT_ROOT/.github:/app/.github:ro" "$IMAGE_NAME" >/dev/null
 
-if [ "$EXISTING_IMAGE" = "$IMAGE_NAME" ]; then
-  docker start "$CONTAINER_NAME" >/dev/null
-else
-  docker run -d --name "$CONTAINER_NAME" -p 8000:8000 -v "$PROJECT_ROOT/mlflow.db:/app/mlflow.db" -v "$PROJECT_ROOT/data:/app/data:ro" -v "$PROJECT_ROOT/scripts:/app/scripts:ro" -v "$PROJECT_ROOT/.github:/app/.github:ro" "$IMAGE_NAME" >/dev/null
-fi
-
-if [ -x "$PROJECT_ROOT/.venv/bin/mlflow" ]; then
-  "$PROJECT_ROOT/.venv/bin/mlflow" ui --backend-store-uri "sqlite:///$PROJECT_ROOT/mlflow.db" --port 5000 >/dev/null 2>&1 &
+if [ -x "$PROJECT_ROOT/.venv/bin/python" ] && "$PROJECT_ROOT/.venv/bin/python" -m mlflow --version >/dev/null 2>&1; then
+  (cd "$PROJECT_ROOT" && "$PROJECT_ROOT/.venv/bin/python" -m mlflow ui --backend-store-uri "sqlite:///mlflow.db" --port 5000 >/dev/null 2>&1) &
   MLFLOW_PID=$!
-elif command -v mlflow >/dev/null 2>&1; then
-  mlflow ui --backend-store-uri "sqlite:///$PROJECT_ROOT/mlflow.db" --port 5000 >/dev/null 2>&1 &
+elif command -v python3 >/dev/null 2>&1 && python3 -m mlflow --version >/dev/null 2>&1; then
+  (cd "$PROJECT_ROOT" && python3 -m mlflow ui --backend-store-uri "sqlite:///mlflow.db" --port 5000 >/dev/null 2>&1) &
   MLFLOW_PID=$!
 fi
 

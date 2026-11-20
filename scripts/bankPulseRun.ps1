@@ -4,9 +4,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$projectRoot = Split-Path -Parent $PSScriptRoot
+$projectRoot = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
 $frontendPath = Join-Path $projectRoot "frontend"
-$venvMlflow = Join-Path $projectRoot ".venv\Scripts\mlflow.exe"
 $containerName = "bankpulseApi"
 $imageName = "bankpulse-api:1.2.0"
 $mlflowProcess = $null
@@ -52,45 +51,32 @@ function Start-DockerIfNeeded {
 function Start-BackendContainer {
     $imageExists = docker images -q $imageName
     if (-not $imageExists) {
-        Write-Host "[BankPulse] Construyendo imagen $imageName..." -ForegroundColor Yellow
+        Write-Host "[BankPulse] Construyendo imagen $imageName desde $projectRoot..." -ForegroundColor Yellow
         docker build -t $imageName $projectRoot
     }
 
-    foreach ($legacy in @("bankpulseApiV11", "bankpulseApiV12")) {
-        $legacyExists = docker ps -a --filter "name=^/${legacy}$" --format "{{.Names}}"
-        if ($legacyExists -eq $legacy) {
-            docker rm -f $legacy *> $null
+    foreach ($stale in @($containerName, "bankpulseApiV11", "bankpulseApiV12")) {
+        $exists = docker ps -a --filter "name=^/${stale}$" --format "{{.Names}}"
+        if ($exists -eq $stale) {
+            docker rm -f $stale *> $null
         }
     }
 
-    $existingImage = docker ps -a --filter "name=^/${containerName}$" --format "{{.Image}}"
-    if ($existingImage -and ($existingImage -ne $imageName)) {
-        Write-Host "[BankPulse] Actualizando contenedor $containerName de $existingImage a $imageName..." -ForegroundColor Yellow
-        docker rm -f $containerName *> $null
-        $existingImage = $null
-    }
+    Write-Host "[BankPulse] 2/4 Iniciando API FastAPI ($containerName en :8000)..." -ForegroundColor Magenta
+    $runArgs = @("run", "-d", "--rm", "--name", $containerName, "-p", "8000:8000", "--add-host=host.docker.internal:host-gateway")
 
-    if ($existingImage -eq $imageName) {
-        Write-Host "[BankPulse] 2/4 Encendiendo API FastAPI ($containerName en :8000)..." -ForegroundColor Magenta
-        docker start $containerName | Out-Null
-    }
-    else {
-        Write-Host "[BankPulse] 2/4 Creando API FastAPI ($containerName en :8000)..." -ForegroundColor Magenta
-        $runArgs = @("run", "-d", "--name", $containerName, "-p", "8000:8000", "--add-host=host.docker.internal:host-gateway")
+    $mlflowDb = Join-Path $projectRoot "mlflow.db"
+    $dataDir = Join-Path $projectRoot "data"
+    $scriptsDir = Join-Path $projectRoot "scripts"
+    $githubDir = Join-Path $projectRoot ".github"
 
-        $mlflowDb = Join-Path $projectRoot "mlflow.db"
-        $dataDir = Join-Path $projectRoot "data"
-        $scriptsDir = Join-Path $projectRoot "scripts"
-        $githubDir = Join-Path $projectRoot ".github"
+    if (Test-Path $mlflowDb) { $runArgs += @("-v", "${mlflowDb}:/app/mlflow.db") }
+    if (Test-Path $dataDir) { $runArgs += @("-v", "${dataDir}:/app/data:ro") }
+    if (Test-Path $scriptsDir) { $runArgs += @("-v", "${scriptsDir}:/app/scripts:ro") }
+    if (Test-Path $githubDir) { $runArgs += @("-v", "${githubDir}:/app/.github:ro") }
 
-        if (Test-Path $mlflowDb) { $runArgs += @("-v", "${mlflowDb}:/app/mlflow.db") }
-        if (Test-Path $dataDir) { $runArgs += @("-v", "${dataDir}:/app/data:ro") }
-        if (Test-Path $scriptsDir) { $runArgs += @("-v", "${scriptsDir}:/app/scripts:ro") }
-        if (Test-Path $githubDir) { $runArgs += @("-v", "${githubDir}:/app/.github:ro") }
-
-        $runArgs += $imageName
-        & docker @runArgs | Out-Null
-    }
+    $runArgs += $imageName
+    & docker @runArgs | Out-Null
 
     Write-Host "[BankPulse] Esperando a que /dashboard/summary responda..." -ForegroundColor DarkGray
     $apiDeadline = (Get-Date).AddSeconds(30)
@@ -116,46 +102,75 @@ function Start-AirflowIfAvailable {
         return
     }
 
+    $distros = (& $wslCmd.Source -l -q 2>$null | ForEach-Object { ($_ -replace "`0", "").Trim() } | Where-Object { $_ -and $_ -notmatch "^docker-desktop" })
+    $targetDistro = $null
     $checkCmd = 'export PATH="$HOME/airflowEnvironment/bin:$HOME/.local/bin:$PATH"; command -v airflow >/dev/null 2>&1'
-    & $wslCmd.Source -- bash -lc $checkCmd *> $null
-    if ($LASTEXITCODE -ne 0) {
+
+    foreach ($d in $distros) {
+        & $wslCmd.Source -d $d -- bash -lc $checkCmd *> $null
+        if ($LASTEXITCODE -eq 0) {
+            $targetDistro = $d
+            break
+        }
+    }
+
+    if (-not $targetDistro) {
         Write-Host "[BankPulse] 3/4 Airflow no detectado en WSL; omitiendo inicio automatico." -ForegroundColor Yellow
         return
     }
 
-    & $wslCmd.Source -- pgrep -f "[a]irflow standalone" *> $null
+    & $wslCmd.Source -d $targetDistro -- pgrep -f "[a]irflow" *> $null
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "[BankPulse] 3/4 Apache Airflow ya estaba activo en WSL (:8080)." -ForegroundColor Green
+        Write-Host "[BankPulse] 3/4 Apache Airflow ya estaba activo en WSL ($targetDistro en :8080)." -ForegroundColor Green
         return
     }
 
-    Write-Host "[BankPulse] 3/4 Iniciando Apache Airflow en WSL (:8080)..." -ForegroundColor Magenta
+    Write-Host "[BankPulse] 3/4 Iniciando Apache Airflow en WSL ($targetDistro en :8080)..." -ForegroundColor Magenta
     $startCmd = 'export PATH="$HOME/airflowEnvironment/bin:$HOME/.local/bin:$PATH"; export AIRFLOW_HOME="${AIRFLOW_HOME:-$HOME/airflowHome}"; mkdir -p "$AIRFLOW_HOME"; nohup airflow standalone > "$AIRFLOW_HOME/dashboardAirflow.log" 2>&1 & echo $! > "$AIRFLOW_HOME/dashboardAirflow.pid"'
-    & $wslCmd.Source -- bash -lc $startCmd
+    & $wslCmd.Source -d $targetDistro -- bash -lc $startCmd
     $script:airflowStarted = $true
+
+    Write-Host "[BankPulse] Esperando a que Airflow UI responda en :8080..." -ForegroundColor DarkGray
+    $afDeadline = (Get-Date).AddSeconds(30)
+    while ((Get-Date) -lt $afDeadline) {
+        try {
+            $afResp = Invoke-WebRequest -Uri "http://localhost:8080/" -UseBasicParsing -TimeoutSec 2
+            if ($afResp.StatusCode -eq 200) {
+                Write-Host "[BankPulse] 3/4 Apache Airflow listo en http://localhost:8080/" -ForegroundColor Green
+                return
+            }
+        }
+        catch {
+            Start-Sleep -Seconds 1
+        }
+    }
+    Write-Host "[BankPulse] Aviso: Airflow sigue inicializando; recarga http://localhost:8080/ en unos segundos." -ForegroundColor Yellow
 }
 
 function Start-MlflowUiIfAvailable {
-    $mlflowCmd = $null
-    if (Test-Path $venvMlflow) {
-        $mlflowCmd = $venvMlflow
-    }
-    else {
-        $globalMlflow = Get-Command mlflow -ErrorAction SilentlyContinue
-        if ($globalMlflow) { $mlflowCmd = $globalMlflow.Source }
+    $pythonCandidates = @(
+        (Join-Path $projectRoot ".venv\Scripts\python.exe"),
+        (Join-Path $projectRoot "venv\Scripts\python.exe")
+    )
+    $globalPython = Get-Command python -ErrorAction SilentlyContinue
+    if ($globalPython) { $pythonCandidates += $globalPython.Source }
+
+    foreach ($py in $pythonCandidates) {
+        if ($py -and (Test-Path $py)) {
+            & $py -m mlflow --version *> $null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "[BankPulse] 4/4 Iniciando interfaz MLflow (:5000)..." -ForegroundColor Magenta
+                $script:mlflowProcess = Start-Process -FilePath $py `
+                    -ArgumentList "-m", "mlflow", "ui", "--backend-store-uri", "sqlite:///mlflow.db", "--port", "5000" `
+                    -WorkingDirectory $projectRoot `
+                    -WindowStyle Hidden `
+                    -PassThru
+                return
+            }
+        }
     }
 
-    if (-not $mlflowCmd) {
-        Write-Host "[BankPulse] 4/4 MLflow CLI no encontrado; omitiendo UI nativa (:5000)." -ForegroundColor Yellow
-        return
-    }
-
-    Write-Host "[BankPulse] 4/4 Iniciando interfaz MLflow (:5000)..." -ForegroundColor Magenta
-    $script:mlflowProcess = Start-Process -FilePath $mlflowCmd `
-        -ArgumentList "ui", "--backend-store-uri", "sqlite:///mlflow.db", "--port", "5000" `
-        -WorkingDirectory $projectRoot `
-        -WindowStyle Hidden `
-        -PassThru
+    Write-Host "[BankPulse] 4/4 MLflow no disponible en Python local; omitiendo UI nativa (:5000)." -ForegroundColor Yellow
 }
 
 try {
@@ -220,3 +235,4 @@ finally {
         Write-Host "[BankPulse] Docker Desktop cerrado por completo." -ForegroundColor Green
     }
 }
+
