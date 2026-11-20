@@ -9,7 +9,7 @@ $frontendPath = Join-Path $projectRoot "frontend"
 $containerName = "bankpulseApi"
 $imageName = "bankpulse-api:1.2.0"
 $mlflowProcess = $null
-$airflowStarted = $false
+$airflowProcess = $null
 
 function Test-DockerReady {
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -104,10 +104,12 @@ function Start-AirflowIfAvailable {
 
     $distros = (& $wslCmd.Source -l -q 2>$null | ForEach-Object { ($_ -replace "`0", "").Trim() } | Where-Object { $_ -and $_ -notmatch "^docker-desktop" })
     $targetDistro = $null
-    $checkCmd = 'export PATH="$HOME/airflowEnvironment/bin:$HOME/.local/bin:$PATH"; command -v airflow >/dev/null 2>&1'
+
+    $checkScript = 'export PATH="$HOME/airflowEnvironment/bin:$HOME/.local/bin:$PATH"; command -v airflow >/dev/null 2>&1'
+    $checkB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($checkScript))
 
     foreach ($d in $distros) {
-        & $wslCmd.Source -d $d -- bash -lc $checkCmd *> $null
+        & $wslCmd.Source -d $d -- bash -lc "echo $checkB64 | base64 -d | bash" *> $null
         if ($LASTEXITCODE -eq 0) {
             $targetDistro = $d
             break
@@ -126,27 +128,38 @@ function Start-AirflowIfAvailable {
     }
 
     Write-Host "[BankPulse] 3/4 Iniciando Apache Airflow en WSL ($targetDistro en :8080)..." -ForegroundColor Magenta
-    $startCmd = 'export PATH="$HOME/airflowEnvironment/bin:$HOME/.local/bin:$PATH"; export AIRFLOW_HOME="${AIRFLOW_HOME:-$HOME/airflowHome}"; mkdir -p "$AIRFLOW_HOME"; nohup airflow standalone > "$AIRFLOW_HOME/dashboardAirflow.log" 2>&1 & echo $! > "$AIRFLOW_HOME/dashboardAirflow.pid"'
-    & $wslCmd.Source -d $targetDistro -- bash -lc $startCmd
-    $script:airflowStarted = $true
+    $execScript = @(
+        'export PATH="$HOME/airflowEnvironment/bin:$HOME/.local/bin:$PATH"',
+        'export AIRFLOW_HOME="${AIRFLOW_HOME:-$HOME/airflowHome}"',
+        'mkdir -p "$AIRFLOW_HOME"',
+        'exec airflow standalone > "$AIRFLOW_HOME/dashboardAirflow.log" 2>&1'
+    ) -join "`n"
+    $execB64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($execScript))
 
-    Write-Host "[BankPulse] Esperando a que Airflow UI responda en :8080..." -ForegroundColor DarkGray
-    $afDeadline = (Get-Date).AddSeconds(30)
+    $script:airflowProcess = Start-Process -FilePath $wslCmd.Source `
+        -ArgumentList @("-d", $targetDistro, "--", "bash", "-lc", "`"echo $execB64 | base64 -d | bash`"") `
+        -WindowStyle Hidden `
+        -PassThru
+
+    Write-Host "[BankPulse] Esperando a que Airflow UI escuche en :8080..." -ForegroundColor DarkGray
+    $afDeadline = (Get-Date).AddSeconds(60)
     while ((Get-Date) -lt $afDeadline) {
         try {
-            $afResp = Invoke-WebRequest -Uri "http://localhost:8080/" -UseBasicParsing -TimeoutSec 2
-            if ($afResp.StatusCode -eq 200) {
+            $tcp = [System.Net.Sockets.TcpClient]::new()
+            $ar = $tcp.BeginConnect("127.0.0.1", 8080, $null, $null)
+            if ($ar.AsyncWaitHandle.WaitOne(1000)) {
+                $tcp.EndConnect($ar)
+                $tcp.Close()
                 Write-Host "[BankPulse] 3/4 Apache Airflow listo en http://localhost:8080/" -ForegroundColor Green
                 return
             }
+            $tcp.Close()
         }
-        catch {
-            Start-Sleep -Seconds 1
-        }
+        catch {}
+        Start-Sleep -Seconds 1
     }
-    Write-Host "[BankPulse] Aviso: Airflow sigue inicializando; recarga http://localhost:8080/ en unos segundos." -ForegroundColor Yellow
+    Write-Host "[BankPulse] Aviso: Airflow sigue inicializando; revisa ~/airflowHome/dashboardAirflow.log si no carga :8080." -ForegroundColor Yellow
 }
-
 function Start-MlflowUiIfAvailable {
     $pythonCandidates = @(
         (Join-Path $projectRoot ".venv\Scripts\python.exe"),
@@ -218,12 +231,13 @@ finally {
 
     $wslCmd = Get-Command wsl.exe -ErrorAction SilentlyContinue
     if ($wslCmd) {
-        if ($airflowStarted) {
-            $stopCmd = 'export AIRFLOW_HOME="${AIRFLOW_HOME:-$HOME/airflowHome}"; if [ -f "$AIRFLOW_HOME/dashboardAirflow.pid" ]; then kill -TERM $(cat "$AIRFLOW_HOME/dashboardAirflow.pid") 2>/dev/null || true; rm -f "$AIRFLOW_HOME/dashboardAirflow.pid"; fi; pkill -f "airflow" 2>/dev/null || true'
-            & $wslCmd.Source -- bash -lc $stopCmd *> $null
+        if ($airflowProcess) {
+            if (-not $airflowProcess.HasExited) {
+                Stop-Process -Id $airflowProcess.Id -Force -ErrorAction SilentlyContinue
+            }
+            & $wslCmd.Source -d Ubuntu -- pkill -f "airflow" *> $null
             Write-Host "[BankPulse] Airflow detenido en WSL." -ForegroundColor Green
         }
-
         if (-not $SkipDockerShutdown) {
             & $wslCmd.Source --shutdown *> $null
             Write-Host "[BankPulse] WSL apagado." -ForegroundColor Green
@@ -235,4 +249,7 @@ finally {
         Write-Host "[BankPulse] Docker Desktop cerrado por completo." -ForegroundColor Green
     }
 }
+
+
+
 
